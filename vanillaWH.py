@@ -1,4 +1,4 @@
-import rebound # bruh
+import rebound 
 # import matplotlib.pyplot as plt
 import numpy as np
 import time
