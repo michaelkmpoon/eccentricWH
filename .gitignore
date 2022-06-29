@@ -1,2 +1,6 @@
 .ipynb_checkpoints/
 __pycache__/
+*.jpg
+*.pdf
+*.png
+vanillaWH_tools_python_optimized.py
