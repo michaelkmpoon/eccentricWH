@@ -5,6 +5,38 @@ __email__ = 'michaelkm.poon@mail.utoronto.ca'
 
 import numpy as np
 
+def move_to_com_2(sim):
+    """
+    Convert from heliocentric to inertial (centre-of-mass) positions and velocities
+    
+    Parameters:
+        sim (array): [x, y, z, vx, vy, vz, m] stacked for each particle in heliocentric coordinates
+        
+    Returns:
+        (array): [x, y, z, vx, vy, vz, m] stacked for each particle in inertial coodinates
+    """
+    
+    # the output array
+    output_array = np.zeros(sim.shape)
+    
+    # summing the mass up
+    m_total = np.sum(sim[:,6], axis=0)
+        
+    for i in range(6):
+        # calculate the COM (x, y, z, vx, vy, vz)
+        # sim[:,6] is the mass of each particle
+        # sim[:,i] is the COM coordinates (x,y,z etc.)
+        # multiplying together and summing gives the dot product
+        # aka mi * xi
+        COM_coord = np.sum(sim[:,i] * sim[:,6], axis=0) / m_total
+        # subtract from original heliocentric coordinate
+        output_array[:,i] = sim[:,i] - COM_coord
+    
+    # set the mass
+    output_array[:,6] = sim[:,6] 
+    
+    return output_array
+
 def move_to_com(sim):
     """
     Convert from heliocentric to inertial (centre-of-mass) positions and velocities
@@ -48,6 +80,67 @@ def move_to_com(sim):
         sim[i, 5] -= COM_vz
         
     return sim
+
+
+def inertial_to_jacobi_2(sim):
+    """
+    Convert from inertial (centre-of-mass) positions and velocities to Jacobi pos/vel
+    
+    Jacobi Coordinates: coordinates are measured relative to the COM of all inner bodies
+    
+    This follows transformations.c from Rebound, WHFast paper, and Mikkola & Innanen 1999
+    
+    Parameters:
+        sim (array): [x, y, z, vx, vy, vz, m] stacked for each particle in inertial coordinates
+        
+    Returns:
+        (array): [x, y, z, vx, vy, vz, m] stacked for each particle in Jacobi coodinates
+    """
+    
+    N_particles = sim.shape[0]
+    
+    sim_jacobi = np.zeros(sim.shape)
+    
+    # the center of mass array
+    # multiply central object mass (sim[0,6])
+    # with other cartesian coordinates (sim[0,:6])
+    COM_array = sim[0,6] * sim[0,:6]
+
+    # interior mass up to ith object (not incl. ith)
+    M_iminus1 = np.cumsum(sim[:,6])
+    
+    for i in range(1, N_particles):
+        # mass of the ith particle (NOT cummulative)
+        mi = sim[i,6]
+        
+        # find the jacobi coord
+        jacobi_coord = sim[i,:6] - COM_array / M_iminus1[i]        
+        sim_jacobi[i,:6] = jacobi_coord 
+        
+        # updating the COM array following line ___ in Rein+Tamayo2015
+        COM_array = COM_array * (1 +  mi  / M_iminus1[i] ) + mi * jacobi_coord
+        
+        # find the jacobi mass
+        mi_jacobi = (mi*M_iminus1[i]) / (mi+M_iminus1[i])
+        sim_jacobi[i, 6] = mi_jacobi
+    
+    # now, we handle the central object
+    
+    # total mass is the last cumulative value
+    m_total = M_iminus1[-1]
+    
+    # Jacobi coordinate for the central object
+    jacobi_coord0 = COM_array / m_total
+    
+    # TODO: check this carefully later (debug)
+    # print(COM_array)
+    # print(m_total, jacobi_coord0)    
+    
+    
+    sim_jacobi[0,6] = m_total
+    sim_jacobi[0,:6] = jacobi_coord0
+
+    return sim_jacobi
 
 def inertial_to_jacobi(sim):
     """
