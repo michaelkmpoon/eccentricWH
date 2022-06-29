@@ -14,8 +14,7 @@ def move_to_com(sim):
         
     Returns:
         (array): [x, y, z, vx, vy, vz, m] stacked for each particle in inertial coodinates
-    """    
-    
+    """
     
     m_total = 0.
     COM_x, COM_y, COM_z, COM_vx, COM_vy, COM_vz = np.zeros(6)
@@ -48,7 +47,7 @@ def move_to_com(sim):
         sim[i, 5] -= COM_vz
         
     return sim
-
+    
 def inertial_to_jacobi(sim):
     """
     Convert from inertial (centre-of-mass) positions and velocities to Jacobi pos/vel
@@ -115,7 +114,6 @@ def inertial_to_jacobi(sim):
     v0j_y = COM_vy / m_total
     v0j_z = COM_vz / m_total
 
-    
     # Jacobi mass of central object is total mass
     m0j = 0.
     for i in range(len(sim)):
