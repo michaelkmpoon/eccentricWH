@@ -16,7 +16,6 @@ def move_to_com(sim):
         (array): [x, y, z, vx, vy, vz, m] stacked for each particle in inertial coodinates
     """    
     
-    
     m_total = 0.
     COM_x, COM_y, COM_z, COM_vx, COM_vy, COM_vz = np.zeros(6)
     
@@ -64,7 +63,7 @@ def inertial_to_jacobi(sim):
         (array): [x, y, z, vx, vy, vz, m] stacked for each particle in Jacobi coodinates
     """
     
-    simj = np.zeros(np.shape(sim))
+    sim_jacobi = np.zeros(np.shape(sim))
     
     r0_x, r0_y, r0_z, v0_x, v0_y, v0_z, m0 = sim[0]
     
@@ -93,7 +92,7 @@ def inertial_to_jacobi(sim):
         vij_y = vi_y - COM_vy/M_iminus1
         vij_z = vi_z - COM_vz/M_iminus1
         
-        simj[i,:6] = rij_x, rij_y, rij_z, vij_x, vij_y, vij_z
+        sim_jacobi[i,:6] = rij_x, rij_y, rij_z, vij_x, vij_y, vij_z
         
         COM_x = COM_x * (1 + mi/M_iminus1) + mi*rij_x
         COM_y = COM_y * (1 + mi/M_iminus1) + mi*rij_y
@@ -104,7 +103,7 @@ def inertial_to_jacobi(sim):
         
         # calculate Jacobi mass
         mij = (mi*M_iminus1) / (mi+M_iminus1)
-        simj[i, 6] = mij
+        sim_jacobi[i, 6] = mij
         
     # Different convention for 0-th pos/vel
     m_total = M_iminus1 + mi
@@ -122,9 +121,9 @@ def inertial_to_jacobi(sim):
         mi = sim[i, 6]
         m0j += mi
        
-    simj[0] = r0j_x, r0j_y, r0j_z, v0j_x, v0j_y, v0j_z, m0j
+    sim_jacobi[0] = r0j_x, r0j_y, r0j_z, v0j_x, v0j_y, v0j_z, m0j
     
-    return simj
+    return sim_jacobi
 
 def inertial_to_jacobi_acc(sim, accel_list):
     """
@@ -181,21 +180,21 @@ def inertial_to_jacobi_acc(sim, accel_list):
     
     return accelerationj
 
-def jacobi_to_inertial(simj, masses):
+def jacobi_to_inertial(sim_jacobi, masses):
     """
     Convert from Jacobi positions and velocities to inertial pos/vel
     
     Parameters:
-        simj (array): [x, y, z, vx, vy, vz, m] stacked for each particle in Jacobi coordinates
+        sim_jacobi (array): [x, y, z, vx, vy, vz, m] stacked for each particle in Jacobi coordinates
         
     Returns:
         (array): [x, y, z, vx, vy, vz, m] stacked for each particle in inertial coordinates
     """
     
-    sim = np.zeros(np.shape(simj))
+    sim = np.zeros(np.shape(sim_jacobi))
     
     m0 = masses[0]
-    r0j_x, r0j_y, r0j_z, v0j_x, v0j_y, v0j_z = simj[0,:6]
+    r0j_x, r0j_y, r0j_z, v0j_x, v0j_y, v0j_z = sim_jacobi[0,:6]
 
     m_total = 0.
     for i in range(len(sim)):
@@ -211,13 +210,13 @@ def jacobi_to_inertial(simj, masses):
     
     Mi = 0.
     
-    for i in range(len(simj)-1, 0, -1):
+    for i in range(len(sim_jacobi)-1, 0, -1):
         
         mi = masses[i]
         Mi = np.sum(masses[:i+1])
         M_iminus1 = Mi - mi
         
-        rij_x, rij_y, rij_z, vij_x, vij_y, vij_z = simj[i,:6]
+        rij_x, rij_y, rij_z, vij_x, vij_y, vij_z = sim_jacobi[i,:6]
         
         COM_x = (COM_x - mi * rij_x) / Mi
         COM_y = (COM_y - mi * rij_y) / Mi
