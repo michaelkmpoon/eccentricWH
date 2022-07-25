@@ -6,8 +6,8 @@ __email__ = 'michaelkm.poon@mail.utoronto.ca'
 import numpy as np
 import math
 from scipy import optimize
-from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
+from scipy.integrate import odeint
 import integrator_tools
 
 def drift_solve_ivp(sim_jacobi, sim, h):
