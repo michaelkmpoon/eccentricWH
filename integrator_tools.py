@@ -1,4 +1,11 @@
-"""vanillaWH_tools.py: move to centre-of-mass, coordinate transforms, calculate energy"""
+"""integrator_tools.py: 
+
+includes:
+
+move to centre-of-mass
+coordinate transforms (inertial to Jacobi, and back)
+calculate energy
+"""
 
 __author__ = 'Michael Poon'
 __email__ = 'michaelkm.poon@mail.utoronto.ca'

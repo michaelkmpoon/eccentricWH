@@ -7,7 +7,7 @@ import numpy as np
 import math
 from scipy import optimize
 from scipy.integrate import odeint
-import vanillaWH_tools
+import integrator_tools
 
 def drift(sim_jacobi, sim, h):
     """

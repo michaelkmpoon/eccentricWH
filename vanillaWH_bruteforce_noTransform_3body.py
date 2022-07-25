@@ -7,7 +7,7 @@ import numpy as np
 import math
 from scipy import optimize
 from scipy.integrate import odeint
-import vanillaWH_tools
+import integrator_tools
 
 def drift(sim_jacobi, sim, h):
     """
@@ -21,17 +21,13 @@ def drift(sim_jacobi, sim, h):
         h (float): timestep
 
     Returns:
-        (array): [x, y, z, vx, vy, vz, m] stacked for each updated particle in Jacobi coodinates  
+        (array): [x, y, z, vx, vy, vz, m] stacked for each updated particle in Jacobi coodinates
     """
     
     r1_x, r1_y, r1_z, v1_x, v1_y, v1_z = sim_jacobi[1,:6]
     r2_x, r2_y, r2_z, v2_x, v2_y, v2_z = sim_jacobi[2,:6]
     m1, m2, m3 = sim[:3,6]
     m1_jacobi, m2_jacobi, m3_jacobi = sim_jacobi[:3,6]
-    
-    # Norm of Jacobi coordinates. will be used in time transform
-    r1 = np.sqrt(sim_jacobi[1,0]**2 + sim_jacobi[1,1]**2 + sim_jacobi[1,2]**2)
-    r2 = np.sqrt(sim_jacobi[2,0]**2 + sim_jacobi[2,1]**2 + sim_jacobi[2,2]**2)
     
     mu1 = m1*m2 / (m1 + m2)
     mu2 = m3 * (m1 + m2) / (m1 + m2 + m3)
@@ -42,8 +38,8 @@ def drift(sim_jacobi, sim, h):
     initial_vector1 = [r1_x, r1_y, r1_z, m2_jacobi*v1_x, m2_jacobi*v1_y, m2_jacobi*v1_z]
     initial_vector2 = [r2_x, r2_y, r2_z, m3_jacobi*v2_x, m3_jacobi*v2_y, m3_jacobi*v2_z]
     
-    sol1 = odeint(drift_ODE1, initial_vector1, t, args=(r1, r2, m1, m2, m3, mu1, mu2))
-    sol2 = odeint(drift_ODE2, initial_vector2, t, args=(r1, r2, m1, m2, m3, mu1, mu2))
+    sol1 = odeint(drift_ODE1, initial_vector1, t, rtol=1e-13, atol=1e-13, args=(m1, m2, m3, mu1, mu2))
+    sol2 = odeint(drift_ODE2, initial_vector2, t, rtol=1e-13, atol=1e-13,args=(m1, m2, m3, mu1, mu2))
     
     # Update position and velocity with h*r' and h*p' in Jacobi coordinates
     
@@ -75,6 +71,9 @@ def drift_ODE1(vector, t, r1, r2, m1, m2, m3, mu1, mu2):
     
     rx, ry, rz, px, py, pz = vector
     
+    # Norm of Jacobi coordinates
+    r1 = np.sqrt(rx**2 + ry**2 + rz**2)
+    
     rx_eqn = px/mu1
     ry_eqn = py/mu1
     rz_eqn = pz/mu1
@@ -95,6 +94,9 @@ def drift_ODE2(vector, t, r1, r2, m1, m2, m3, mu1, mu2):
     """
     
     rx, ry, rz, px, py, pz = vector
+    
+    # Norm of Jacobi coordinates
+    r2 = np.sqrt(rx**2 + ry**2 + rz**2)
     
     rx_eqn = px/mu2
     ry_eqn = py/mu2
@@ -193,7 +195,7 @@ def kick(sim_jacobi, sim, h):
             
     # (3/4) Convert accelerations from second part of the Interaction Hamiltonian to Jacobi coords
     
-    acceleration2j = vanillaWH_tools.inertial_to_jacobi_acc(sim, acceleration2)
+    acceleration2j = integrator_tools.inertial_to_jacobi_acc(sim, acceleration2)
     
     # (4/4) kick Jacobi velocities by h * (accel_part1 + accel_part2)
     

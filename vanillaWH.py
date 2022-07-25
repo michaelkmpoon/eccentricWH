@@ -6,7 +6,7 @@ __email__ = 'michaelkm.poon@mail.utoronto.ca'
 import numpy as np
 import math
 from scipy import optimize
-import vanillaWH_tools
+import integrator_tools
 
 def drift(sim_jacobi, sim, object_num, h):
     """
@@ -199,7 +199,7 @@ def kick(sim_jacobi, sim, h):
             
     # (3/4) Convert accelerations from second part of the Interaction Hamiltonian to Jacobi coords
     
-    acceleration2j = vanillaWH_tools.inertial_to_jacobi_acc(sim, acceleration2)
+    acceleration2j = integrator_tools.inertial_to_jacobi_acc(sim, acceleration2)
     
     # (4/4) kick Jacobi velocities by h * (accel_part1 + accel_part2)
     
