@@ -1,4 +1,4 @@
-"""vanillaWH.py: Minimal Wisdom-Holman integrator following WHFast"""
+"""vanillaWH_bruteforce.py: Wisdom-Holman integrator solving the EOM with an ODE solver"""
 
 __author__ = 'Michael Poon'
 __email__ = 'michaelkm.poon@mail.utoronto.ca'
@@ -6,113 +6,85 @@ __email__ = 'michaelkm.poon@mail.utoronto.ca'
 import numpy as np
 import math
 from scipy import optimize
+from scipy.integrate import solve_ivp
 import integrator_tools
 
 def drift(sim_jacobi, sim, h):
     """
-    Advance (Keplerian part) system by timestep h
+    Advance (Keplerian-like part) system by timestep h,
+    according to eqn. (53) of Mikkola 1997.
     
     Parameters:
         sim_jacobi (array): [x, y, z, vx, vy, vz, m] stacked for each particle in Jacobi coordinates
         sim (array): [x, y, z, vx, vy, vz, m] stacked for each particle in inertial coordinates
+        #p0 (float): negative of Hamiltonian at time 0
         h (float): timestep
 
     Returns:
-        (array): [x, y, z, vx, vy, vz, m] stacked for each updated particle in Jacobi coodinates  
+        (array): [x, y, z, vx, vy, vz, m] stacked for each updated particle in Jacobi coodinates
     """
     
-    # Apply the drift step for each non-central object
-    for i in range(1, len(sim_jacobi)):
+    r1_x, r1_y, r1_z, v1_x, v1_y, v1_z = sim_jacobi[1,:6]
+    r2_x, r2_y, r2_z, v2_x, v2_y, v2_z = sim_jacobi[2,:6]
+    m1, m2, m3 = sim[:3,6]
     
-        rx, ry, rz, vx, vy, vz = sim_jacobi[i, :6]
-
-        total_mass = np.sum(sim[:i+1,6])
-
-        r0 = np.sqrt(rx**2 + ry**2 + rz**2)
-        r0i = 1./r0
-        v2 = vx**2 + vy**2 + vz**2
-        beta = 2*total_mass*r0i - v2
-        eta0 = rx*vx + ry*vy + rz*vz
-        zeta0 = total_mass - beta*r0
-
-        # Solve Kepler's equation for X
-        dtr0i = h * r0i # first order guess
-        X_guess = dtr0i * (1 - dtr0i*eta0*0.5*r0i) # second order guess (following REBOUND)
-
-        X = optimize.newton(func=Keplers_eqn, x0=X_guess, args=(r0, beta, eta0, zeta0, h))
-
-        G1 = calculate_G(1, beta, X) 
-        G2 = calculate_G(2, beta, X)
-        G3 = calculate_G(3, beta, X)
-
-        ri = 1./(r0 + eta0*G1 + zeta0*G2)
-        f = 1 - total_mass*G2*r0i
-        g = h - total_mass*G3
-        fd = -total_mass*G1*r0i*ri   # time derivative of f
-        gd = 1 - total_mass*G2*ri    # time derivative of g
-
-        # solve for new position and velocity using f and g functions
-        sim_jacobi[i, 0] = f*rx + g*vx
-        sim_jacobi[i, 1] = f*ry + g*vy
-        sim_jacobi[i, 2] = f*rz + g*vz
-        sim_jacobi[i, 3] = fd*rx + gd*vx
-        sim_jacobi[i, 4] = fd*ry + gd*vy
-        sim_jacobi[i, 5] = fd*rz + gd*vz
-
+    total_mass1 = m1 + m2
+    total_mass2 = m1 + m2 + m3
+    
+    # Solve ODE for r' and p' in Jacobi coordinates
+    
+    t = np.array([0, h])
+    initial_vector1 = [r1_x, r1_y, r1_z, v1_x, v1_y, v1_z]
+    initial_vector2 = [r2_x, r2_y, r2_z, v2_x, v2_y, v2_z]
+    
+    sol1 = solve_ivp(drift_ODE, t, initial_vector1, method='RK45', t_eval = t, rtol=1e-13, atol=1e-13, args=(total_mass1,))
+    sol2 = solve_ivp(drift_ODE, t, initial_vector2, method='RK45', t_eval = t, rtol=1e-13, atol=1e-13, args=(total_mass2,))
+    
+    # Update position and velocity with h*r' and h*p' in Jacobi coordinates
+    
+    r1_x = sol1.y[0,-1]
+    r1_y = sol1.y[1,-1]
+    r1_z = sol1.y[2,-1]
+    v1_x = sol1.y[3,-1]
+    v1_y = sol1.y[4,-1]
+    v1_z = sol1.y[5,-1]
+    
+    r2_x = sol2.y[0,-1]
+    r2_y = sol2.y[1,-1]
+    r2_z = sol2.y[2,-1]
+    v2_x = sol2.y[3,-1]
+    v2_y = sol2.y[4,-1]
+    v2_z = sol2.y[5,-1]
+    
+    sim_jacobi[1,:6] = np.array([r1_x, r1_y, r1_z, v1_x, v1_y, v1_z])
+    sim_jacobi[2,:6] = np.array([r2_x, r2_y, r2_z, v2_x, v2_y, v2_z])
+    
     return sim_jacobi
 
-def Keplers_eqn(X, r0, beta, eta0, zeta0, h):
+def drift_ODE(t, vector, total_mass):
     """
-    Kepler's equation as described in eqn. (11) of Mikkola & Innanen 1999
-    """
-    term1 = r0 * X
-    term2 = eta0 * calculate_G(2, beta, X)
-    term3 = zeta0 * calculate_G(3, beta, X)
-    return term1 + term2 + term3 - h
-
-def calculate_G(n, beta, X):
-    """
-    G-functions as described in eqn. (9) of Mikkola & Innanen 1999
-    """
-    return X**n * calculate_c(n, beta*X**2)
-
-def c(n, z, j):
-    """
-    Helper function to calculate_c
-    """
-    return (-z)**j / (math.factorial(n + 2*j))
-    
-def calculate_c(n, z, tolerance=1e-14, max_j=30):
-    """
-    c-functions as described in eqn. (7) of Mikkola & Innanen 1999
-    
-    Parameters:
-        n (int): input for c-function
-        z (float): input for c-function
-        tolerance (float): stop expansion when adding the jth term 
-            changes the relative c by less than tolerance. 
-            Default is 1e-14.
-        j (int): max number of terms in c-functione expansion
-            Default is 30.
-    
-    Returns:
-        (float): c-function value at given n, z.
+    EOM from Hamilton's equations for the first part of the new Hamiltonian (Gamma_0),
+    according to eqn. (53) of Mikkola 1997.
+    This is for the first non-central object.
     """
     
-    j = 2 # number of terms in series expansion, after 0 and 1
+    rx, ry, rz, vx, vy, vz = vector
     
-    current_c = c(n, z, 0)
-    next_c = current_c + c(n, z, 1)
+    # separation between the centre-of-mass of objects interior to the orbiting object, 
+    # and the orbiting object
+    separation = np.sqrt(rx**2 + ry**2 + rz**2)
     
-    while (abs((current_c-next_c)/current_c) > tolerance) and j < max_j:
-        current_c = next_c
-        next_c += c(n, z, j)
-        j += 1
-        
-    if j >= max_j:
-        print('warning: c-function not converged')
-        
-    return next_c
+    rx_eqn = vx
+    ry_eqn = vy
+    rz_eqn = vz
+    
+    vx_eqn = -total_mass * separation**(-3) * rx
+    vy_eqn = -total_mass * separation**(-3) * ry
+    vz_eqn = -total_mass * separation**(-3) * rz
+    
+    dvectordt = [rx_eqn, ry_eqn, rz_eqn, vx_eqn, vy_eqn, vz_eqn]
+    
+    return dvectordt
 
 def kick(sim_jacobi, sim, h):
     """
@@ -126,7 +98,7 @@ def kick(sim_jacobi, sim, h):
     Returns:
         (array): [x, y, z, vx, vy, vz, m] stacked for each updated particle in Jacobi coodinates  
     """
-
+    
     # (1/4) Calculate x, y, z accelerations from first part of the Interaction Hamiltonian (in Jacobi coords)
 
     acceleration1j = np.zeros((len(sim_jacobi), 3))
@@ -210,4 +182,3 @@ def kick(sim_jacobi, sim, h):
         sim_jacobi[i, 5] += h * (acceleration1j[i, 2] + acceleration2j[i, 2]) 
 
     return sim_jacobi
-    

@@ -17,47 +17,33 @@ def drift(sim_jacobi, sim, h):
     Parameters:
         sim_jacobi (array): [x, y, z, vx, vy, vz, m] stacked for each particle in Jacobi coordinates
         sim (array): [x, y, z, vx, vy, vz, m] stacked for each particle in inertial coordinates
-        p0 (float): negative of Hamiltonian at time 0
+        #p0 (float): negative of Hamiltonian at time 0
         h (float): timestep
 
     Returns:
         (array): [x, y, z, vx, vy, vz, m] stacked for each updated particle in Jacobi coodinates
     """
     
-    r1_x, r1_y, r1_z, v1_x, v1_y, v1_z = sim_jacobi[1,:6]
-    r2_x, r2_y, r2_z, v2_x, v2_y, v2_z = sim_jacobi[2,:6]
-    m1, m2, m3 = sim[:3,6]
-    
-    total_mass1 = m1 + m2
-    total_mass2 = m1 + m2 + m3
-    
-    # Solve ODE for r' and p' in Jacobi coordinates
-    
-    t = np.array([0, h])
-    initial_vector1 = [r1_x, r1_y, r1_z, v1_x, v1_y, v1_z]
-    initial_vector2 = [r2_x, r2_y, r2_z, v2_x, v2_y, v2_z]
-    
-    sol1 = solve_ivp(drift_ODE, t, initial_vector1, method='RK45', t_eval = t, rtol=1e-13, atol=1e-13, args=(total_mass1,))
-    sol2 = solve_ivp(drift_ODE, t, initial_vector2, method='RK45', t_eval = t, rtol=1e-13, atol=1e-13, args=(total_mass2,))
-    
-    # Update position and velocity with h*r' and h*p' in Jacobi coordinates
-    
-    r1_x = sol1.y[0,-1]
-    r1_y = sol1.y[1,-1]
-    r1_z = sol1.y[2,-1]
-    v1_x = sol1.y[3,-1]
-    v1_y = sol1.y[4,-1]
-    v1_z = sol1.y[5,-1]
-    
-    r2_x = sol2.y[0,-1]
-    r2_y = sol2.y[1,-1]
-    r2_z = sol2.y[2,-1]
-    v2_x = sol2.y[3,-1]
-    v2_y = sol2.y[4,-1]
-    v2_z = sol2.y[5,-1]
-    
-    sim_jacobi[1,:6] = np.array([r1_x, r1_y, r1_z, v1_x, v1_y, v1_z])
-    sim_jacobi[2,:6] = np.array([r2_x, r2_y, r2_z, v2_x, v2_y, v2_z])
+    # Apply the drift step for each non-central object
+    for i in range(1, len(sim_jacobi)):
+        
+        rx, ry, rz, vx, vy, vz = sim_jacobi[i,:6]
+        total_mass = np.sum(sim[:i+1,6])
+
+        # Solve ODE for r' and v' in Jacobi coordinates
+        t = np.array([0, h])
+        initial_vector = [rx, ry, rz, vx, vy, vz]
+        sol = solve_ivp(drift_ODE, t, initial_vector, method='RK45', t_eval = t, rtol=1e-13, atol=1e-13, args=(total_mass,))
+
+        # Update position and velocity in Jacobi coordinates
+        rx = sol.y[0,-1]
+        ry = sol.y[1,-1]
+        rz = sol.y[2,-1]
+        vx = sol.y[3,-1]
+        vy = sol.y[4,-1]
+        vz = sol.y[5,-1]
+        
+        sim_jacobi[i,:6] = np.array([rx, ry, rz, vx, vy, vz])
     
     return sim_jacobi
 
