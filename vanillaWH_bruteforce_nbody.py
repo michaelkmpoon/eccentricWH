@@ -6,7 +6,7 @@ __email__ = 'michaelkm.poon@mail.utoronto.ca'
 import numpy as np
 import math
 from scipy import optimize
-from scipy.integrate import solve_ivp
+from scipy.integrate import odeint
 import integrator_tools
 
 def drift(sim_jacobi, sim, h):
@@ -33,21 +33,21 @@ def drift(sim_jacobi, sim, h):
         # Solve ODE for r' and v' in Jacobi coordinates
         t = np.array([0, h])
         initial_vector = [rx, ry, rz, vx, vy, vz]
-        sol = solve_ivp(drift_ODE, t, initial_vector, method='RK45', t_eval = t, rtol=1e-13, atol=1e-13, args=(total_mass,))
+        sol = odeint(drift_ODE, initial_vector, t, rtol=1e-13, atol=1e-13, args=(total_mass,))
 
         # Update position and velocity in Jacobi coordinates
-        rx = sol.y[0,-1]
-        ry = sol.y[1,-1]
-        rz = sol.y[2,-1]
-        vx = sol.y[3,-1]
-        vy = sol.y[4,-1]
-        vz = sol.y[5,-1]
+        rx = sol[-1,0]
+        ry = sol[-1,1]
+        rz = sol[-1,2]
+        vx = sol[-1,3]
+        vy = sol[-1,4]
+        vz = sol[-1,5]
         
         sim_jacobi[i,:6] = np.array([rx, ry, rz, vx, vy, vz])
     
     return sim_jacobi
 
-def drift_ODE(t, vector, total_mass):
+def drift_ODE(vector, t, total_mass):
     """
     EOM from Hamilton's equations for the first part of the new Hamiltonian (Gamma_0),
     according to eqn. (53) of Mikkola 1997.

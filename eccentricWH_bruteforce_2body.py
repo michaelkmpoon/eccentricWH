@@ -6,7 +6,7 @@ __email__ = 'michaelkm.poon@mail.utoronto.ca'
 import numpy as np
 import math
 from scipy import optimize
-from scipy.integrate import solve_ivp
+from scipy.integrate import odeint
 import integrator_tools
 
 def drift(sim_jacobi, sim, A1, p0, h):
@@ -18,7 +18,6 @@ def drift(sim_jacobi, sim, A1, p0, h):
         sim_jacobi (array): [x, y, z, vx, vy, vz, m] stacked for each particle in Jacobi coordinates
         sim (array): [x, y, z, vx, vy, vz, m] stacked for each particle in inertial coordinates
         A1 (float): time transform parameters
-        #physical_time (float): time coordinate q0 as described in Mikkola 1997
         p0 (float): negative of Hamiltonian at time 0
         h (float): timestep
 
@@ -35,25 +34,21 @@ def drift(sim_jacobi, sim, A1, p0, h):
         # Solve ODE for r' and v' in Jacobi coordinates
         t = np.array([0, h])
         initial_vector = [rx, ry, rz, vx, vy, vz]
-        if i == 1:
-            sol = solve_ivp(drift_ODE, t, initial_vector, method='RK45', t_eval = t, rtol=1e-13, atol=1e-13, args=(total_mass, A1, p0))
-        else:
-            separation = np.sqrt(sim_jacobi[1,0]**2 + sim_jacobi[1,1]**2 + sim_jacobi[1,2]**2)
-            sol = solve_ivp(drift_ODE, t, initial_vector, method='RK45', t_eval = t, rtol=1e-13, atol=1e-13, args=(total_mass, A1, p0, separation))
+        sol = odeint(drift_ODE, initial_vector, t, rtol=1e-13, atol=1e-13, args=(total_mass, A1, p0))
 
         # Update position and velocity in Jacobi coordinates
-        rx = sol.y[0,-1]
-        ry = sol.y[1,-1]
-        rz = sol.y[2,-1]
-        vx = sol.y[3,-1]
-        vy = sol.y[4,-1]
-        vz = sol.y[5,-1]
+        rx = sol[-1,0]
+        ry = sol[-1,1]
+        rz = sol[-1,2]
+        vx = sol[-1,3]
+        vy = sol[-1,4]
+        vz = sol[-1,5]
         
         sim_jacobi[i,:6] = np.array([rx, ry, rz, vx, vy, vz])
 
     return sim_jacobi
 
-def drift_ODE(t, vector, total_mass, A1, p0, separation=None):
+def drift_ODE(vector, t, total_mass, A1, p0):
     """
     EOM from Hamilton's equations for the first part of the new Hamiltonian (Gamma_0),
     according to eqn. (53) of Mikkola 1997.
@@ -64,8 +59,7 @@ def drift_ODE(t, vector, total_mass, A1, p0, separation=None):
     
     # separation between the centre-of-mass of objects interior to the orbiting object, 
     # and the orbiting object
-    if separation is None:
-        separation = np.sqrt(rx**2 + ry**2 + rz**2)
+    separation = np.sqrt(rx**2 + ry**2 + rz**2)
     velocity_squared = vx**2 + vy**2 + vz**2
     
     rx_eqn = time_transform(separation, A1)*vx
@@ -74,9 +68,10 @@ def drift_ODE(t, vector, total_mass, A1, p0, separation=None):
     
     term1 = -time_transform(separation, A1)*total_mass * separation**(-3)
     term2 = - 0.5*velocity_squared + total_mass/separation - p0
-    vx_eqn = term1*rx - time_transform_derivative(separation, A1)*term2
-    vy_eqn = term1*ry - time_transform_derivative(separation, A1)*term2 
-    vz_eqn = term1*rz - time_transform_derivative(separation, A1)*term2
+    
+    vx_eqn = term1*rx + time_transform_derivative(separation, A1, rx)*term2
+    vy_eqn = term1*ry + time_transform_derivative(separation, A1, ry)*term2 
+    vz_eqn = term1*rz + time_transform_derivative(separation, A1, rz)*term2
     
     dvectordt = [rx_eqn, ry_eqn, rz_eqn, vx_eqn, vy_eqn, vz_eqn]
     
@@ -86,6 +81,6 @@ def time_transform(separation, A1):
     return separation/A1
     #return 1.
 
-def time_transform_derivative(separation, A1):
-    return 1/A1
+def time_transform_derivative(separation, A1, ri):
+    return (1/A1) * (ri/separation)
     #return 0.
