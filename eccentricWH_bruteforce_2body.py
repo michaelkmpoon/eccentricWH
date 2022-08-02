@@ -62,25 +62,52 @@ def drift_ODE(vector, t, total_mass, A1, p0):
     separation = np.sqrt(rx**2 + ry**2 + rz**2)
     velocity_squared = vx**2 + vy**2 + vz**2
     
-    rx_eqn = time_transform(separation, A1)*vx
-    ry_eqn = time_transform(separation, A1)*vy
-    rz_eqn = time_transform(separation, A1)*vz
+    time_transform_a1 = time_transform(separation, A1)
+    rx_eqn = time_transform_a1*vx
+    ry_eqn = time_transform_a1*vy
+    rz_eqn = time_transform_a1*vz
     
-    term1 = -time_transform(separation, A1)*total_mass * separation**(-3)
+    term1 = -time_transform_a1*total_mass * separation**(-3)
     term2 = - 0.5*velocity_squared + total_mass/separation - p0
     
     vx_eqn = term1*rx + time_transform_derivative(separation, A1, rx)*term2
     vy_eqn = term1*ry + time_transform_derivative(separation, A1, ry)*term2 
-    vz_eqn = term1*rz + time_transform_derivative(separation, A1, rz)*term2
-    
+    vz_eqn = term1*rz + time_transform_derivative(separation, A1, rz)*term2 
+          
     dvectordt = [rx_eqn, ry_eqn, rz_eqn, vx_eqn, vy_eqn, vz_eqn]
     
     return dvectordt
+
+# def drift_ODE(vector, t, total_mass, A1, p0):
+#     """
+#     EOM from Hamilton's equations for the first part of the new Hamiltonian (Gamma_0),
+#     according to eqn. (53) of Mikkola 1997.
+#     This is for the first non-central object.
+#     """
+    
+#     r, v = vector[:3], vector[3:]
+    
+#     # separation between the centre-of-mass of objects interior to the orbiting object, 
+#     # and the orbiting object
+#     separation = np.sqrt(r[0]**2 + r[1]**2 + r[2]**2)
+#     velocity_squared = v[0]**2 + v[1]**2 + v[2]**2
+    
+#     time_transform_a1 = time_transform(separation, A1)
+#     r_eqn = [time_transform_a1 * v_component for v_component in v]
+    
+#     term1 = -time_transform_a1*total_mass * separation**(-3)
+#     term2 = - 0.5*velocity_squared + total_mass/separation - p0
+    
+#     v_eqn = [term1*r_component + time_transform_derivative(separation, A1, r_component)*term2 for r_component in r]
+    
+#     dvectordt = r_eqn + v_eqn
+    
+#     return dvectordt
 
 def time_transform(separation, A1):
     return separation/A1
     #return 1.
 
-def time_transform_derivative(separation, A1, ri):
-    return (1/A1) * (ri/separation)
-    #return 0.
+def time_transform_derivative(separation, A1, ri):    
+    #return (1/A1) * (ri/separation)
+    return 0.
