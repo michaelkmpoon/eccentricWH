@@ -10,7 +10,7 @@ from scipy.integrate import odeint
 import integrator_tools
 
 def drift(sim_jacobi, sim, A1, p0, h):
-    """
+    """f
     Advance (Keplerian-like part) system by timestep h,
     according to eqn. (53) of Mikkola 1997.
     
