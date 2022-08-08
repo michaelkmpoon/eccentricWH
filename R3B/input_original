@@ -1,0 +1,4 @@
+   1  60  5  1000.  1 15          Iwr, NS Ist  Yearmax a1 a2 (iwr & ist affect writing, NS accuracy , Yearmax time interval) 
+   1.0   0 0 0   0 0 0          'SUN'    mass_1  coords_1  vels_1
+   1.d-6  1 0 .1   0  1 0        'EARTH' mass_2  .............
+   1.e-3  5  .1 .2  0 .27 0      'JUPITER'  
