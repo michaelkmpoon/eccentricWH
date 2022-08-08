@@ -1,0 +1,13 @@
+cdr        data for exter3b, also for LG3B
+cdr.L      data for Lyapunov3b
+cdr.sim    data for simple3b
+
+These are 3-body codes:
+
+exter3B.f         This allows external perturbations programed by the user (see comments in the code)
+LG3B.f           Here soft potential allowed (NO ADVANTAGE FOR COMPUTATION)
+Lyapunov3b.f     The variational equations are solved also
+simple3b.f       This is a very simple (logaritmic leapfrog only) 3B code.
+
+Symplectic3B.f   This is a symplectic 3B code for hierarchical 3B systems. Time transformed Wisdom-Holman-like system.
+
